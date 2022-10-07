@@ -3,11 +3,14 @@
 # DATE: 21:15 2022/9/17
 
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 # from torch.optim import optimizer
 from visdom import Visdom
+import heapq
+from scipy.spatial import distance
 
 # from generate_data import PersonDataset
 # from occupancy import SocialDataset
@@ -37,36 +40,55 @@ batch_size = 15
 #     return person_dataloader
 
 
-def calculate_FDE(test_label, predicted_output, test_num, show_num):
-    total_FDE = np.zeros((test_num, 1))
+def calculate_fde(test_label, predicted_output, test_num, show_num):
+    """
+    计算终点偏移距离
+    :param test_label: 测试的标签[ped_num, frame_num, coord]
+    :param predicted_output: 预测的输出[ped_num, frame_num, coord]
+    :param test_num: 测试数量
+    :param show_num: 用于计算最终平均偏移点
+    :return:
+    """
+    total_fde = np.zeros((test_num, 1))
     for i in range(test_num):
         predicted_result_temp = predicted_output[i]
         label_temp = test_label[i]
-        total_FDE[i] = distance.euclidean(predicted_result_temp[-1], label_temp[-1])
+        # 计算欧氏距离
+        total_fde[i] = distance.euclidean(predicted_result_temp[-1], label_temp[-1])
 
-    show_FDE = heapq.nsmallest(show_num, total_FDE)
+    # 获取前show_num个最小值
+    show_fde = heapq.nsmallest(show_num, total_fde)
 
-    show_FDE = np.reshape(show_FDE, [show_num, 1])
+    show_fde = np.reshape(show_fde, [show_num, 1])
 
-    return np.average(show_FDE)
+    return np.average(show_fde)
 
 
-def calculate_ADE(test_label, predicted_output, test_num, predicting_frame_num, show_num):
-    total_ADE = np.zeros((test_num, 1))
+def calculate_ade(test_label, predicted_output, test_num, predicting_frame_num, show_num):
+    """
+    计算平均偏移距离
+    :param test_label: 测试的标签[ped_num, frame_num, coord]
+    :param predicted_output: [ped_num, frame_num, coord]
+    :param test_num: 测试数量
+    :param predicting_frame_num: 预测的帧数
+    :param show_num: 用于计算最终平均偏移点
+    :return:
+    """
+    total_ade = np.zeros((test_num, 1))
     for i in range(test_num):
         predicted_result_temp = predicted_output[i]
         label_temp = test_label[i]
-        ADE_temp = 0.0
+        ade_temp = 0.0
         for j in range(predicting_frame_num):
-            ADE_temp += distance.euclidean(predicted_result_temp[j], label_temp[j])
-        ADE_temp = ADE_temp / predicting_frame_num
-        total_ADE[i] = ADE_temp
+            ade_temp += distance.euclidean(predicted_result_temp[j], label_temp[j])
+        ade_temp = ade_temp / predicting_frame_num
+        total_ade[i] = ade_temp
 
-    show_ADE = heapq.nsmallest(show_num, total_ADE)
+    show_ade = heapq.nsmallest(show_num, total_ade)
 
-    show_ADE = np.reshape(show_ADE, [show_num, 1])
+    show_ade = np.reshape(show_ade, [show_num, 1])
 
-    return np.average(show_ADE)
+    return np.average(show_ade)
 
 
 def get_data():
@@ -302,7 +324,7 @@ if __name__ == '__main__':
     # model = Seq2Seq(128)
     # input, target = get_data()
     # model(input, target)
-    train_with_val()
+    # train_with_val()
     # social = SocialDataset(observed_frame_num, predicting_frame_num)
     # x = torch.rand(2, 8, 16)
     # social_model = SocialModel(128)
@@ -324,3 +346,8 @@ if __name__ == '__main__':
     # print(person(x))
     # SS_LSTM = Seq2Seq(128)
     # print(SS_LSTM)
+    test_label = np.zeros((1, 1, 2))
+    test_label[0][0][0] = 0
+    test_label[0][0][1] = 1
+    output = np.zeros((1, 1, 2))
+    print(calculate_fde(test_label, output, 1, 1))
