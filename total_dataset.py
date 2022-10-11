@@ -33,12 +33,12 @@ class TotalDataset(Dataset):
         self.state = state
         # ###############Person############## #
 
-        # ###############Social############## #
+        # ###############Social############### #
         self.social_rectangular_input = []
         # self.social_rectangular_output = []
         self.rectangular_neighborhood_size = 16
         self.rectangular_grid_size = 4
-        # ###############Social############## #
+        # ###############Social############### #
 
         # ###############Scene############### #
         self.video_path = video_path
