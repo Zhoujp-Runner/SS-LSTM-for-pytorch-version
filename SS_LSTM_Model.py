@@ -8,13 +8,14 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 # from torch.optim import optimizer
-#from visdom import Visdom
+from visdom import Visdom
 import heapq
 from scipy.spatial import distance
 
 # from generate_data import PersonDataset
 # from occupancy import SocialDataset
 from total_dataset import TotalDataset
+from total_dataset import SSLSTMDataset
 
 # #############parameters################# #
 observed_frame_num = 8
@@ -236,17 +237,24 @@ def train_with_val():
     # dataset_person = PersonDataset(observed_frame_num, predicting_frame_num, state='train')
     # dataloader_person = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    dataset_val = TotalDataset(observed_frame_num, predicting_frame_num, state='validation')
+    # dataset_val = TotalDataset(observed_frame_num, predicting_frame_num, state='validation')
+    # dataloader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=True)
+    #
+    # dataset = TotalDataset(observed_frame_num, predicting_frame_num, state='train')
+    # dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataset_val = SSLSTMDataset(state='validation')
     dataloader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=True)
 
-    dataset = TotalDataset(observed_frame_num, predicting_frame_num, state='train')
+    dataset = SSLSTMDataset(state='train')
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    print('dataloader over')
 
     model = Seq2Seq(128).to(device())
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters())
 
-    # viz = Visdom(env="SS_LSTM")
+    viz = Visdom(env="SS_LSTM")
 
     val_loss_epoch = 0
     train_loss_epoch = 0
@@ -273,8 +281,8 @@ def train_with_val():
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
-            print("Realtime loss: {}".format(loss.item()))
-        print("train_loss: ", train_loss)
+            # print("Realtime loss: {}".format(loss.item()))
+        # print("train_loss: ", train_loss)
         train_loss_epoch = train_loss/len(dataloader)
         print("Epoch: {} Realtime average loss: {}".format(i, train_loss/len(dataloader)))
         if i % 3 == 0:
@@ -298,9 +306,9 @@ def train_with_val():
                     val_loss += loss_val.item()
                 val_loss_epoch = val_loss/len(dataloader_val)
                 print("\nVal_loss: ", val_loss/len(dataloader_val))
-        # x = torch.tensor([i])
-        # y = torch.tensor([[train_loss_epoch, val_loss_epoch]])
-        # viz.line(X=x, Y=y, win="Loss_Loss", update='append')
+        x = torch.tensor([i])
+        y = torch.tensor([[train_loss_epoch, val_loss_epoch]])
+        viz.line(X=x, Y=y, win="Loss_Loss", update='append')
 
 
 if __name__ == '__main__':

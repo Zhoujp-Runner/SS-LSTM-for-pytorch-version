@@ -14,6 +14,10 @@ import occupancy
 
 filename = "./data/ewap_dataset_full/ewap_dataset/seq_eth/obsmat.txt"
 video_path = "./data/ewap_dataset_full/ewap_dataset/seq_eth/seq_eth.avi"
+save_file1 = "./data/trajs_input.npy"
+save_file2 = "./data/expected_output.npy"
+save_file3 = "./data/social_rectangular_input.npy"
+save_file4 = "./data/scene_input.npy"
 
 
 class TotalDataset(Dataset):
@@ -61,7 +65,9 @@ class TotalDataset(Dataset):
 
         self.get_img_match_to_trajs_frame()
 
-        self.generate_data()
+        self.save_data()
+
+        # self.generate_data()
 
         # print(person_id)
         # print(self.ped_num)
@@ -223,6 +229,66 @@ class TotalDataset(Dataset):
     #                                                  self.pred_len,
     #                                                  int(self.rectangular_neighborhood_size / self.rectangular_grid_size)**2])
 
+    def save_data(self):
+        """
+        保存数据
+        :return:
+        """
+        np.save(save_file1, self.trajs_input)
+        np.save(save_file2, self.expected_output)
+        np.save(save_file3, self.social_rectangular_input)
+        np.save(save_file4, self.scene_input)
+
+    def generate_data(self):
+        """
+        生成训练数据
+        :return:
+        """
+        if self.state == 'train':
+            self.trajs_input = self.trajs_input[:int(self.len/8)*5]
+            self.expected_output = self.expected_output[:int(self.len / 8) * 5]
+            self.social_rectangular_input = self.social_rectangular_input[:int(self.len / 8) * 5]
+            self.scene_input = self.scene_input[:int(self.len / 8) * 5]
+            self.len = len(self.trajs_input)
+        elif self.state == 'validation':
+            self.trajs_input = self.trajs_input[int(self.len/8)*5:int(self.len/8)*7]
+            self.expected_output = self.expected_output[int(self.len / 8) * 5:int(self.len / 8) * 7]
+            self.social_rectangular_input = self.social_rectangular_input[int(self.len / 8) * 5:int(self.len / 8) * 7]
+            self.scene_input = self.scene_input[int(self.len / 8) * 5:int(self.len / 8) * 7]
+            self.len = len(self.expected_output)
+        self.trajs_input = torch.FloatTensor(self.trajs_input)
+        self.expected_output = torch.FloatTensor(self.expected_output)
+        self.social_rectangular_input = torch.FloatTensor(self.social_rectangular_input)
+        self.scene_input = torch.FloatTensor(self.scene_input)
+
+    def __len__(self):
+        # input, output = self.generate_data()
+        return self.len
+
+    def __getitem__(self, item):
+        # input, target = self.generate_data()
+        person_input = self.trajs_input[item, :, :]
+        social_input = self.social_rectangular_input[item, :, :]
+        scene_input = self.scene_input[item]
+        scene_input = scene_input.permute(3, 0, 1, 2)
+        target = self.expected_output[item, :, :]
+        return person_input, social_input, scene_input, target
+        # return person_input, social_input,  target
+
+
+class SSLSTMDataset(Dataset):
+    def __init__(self, state='train'):
+        super(SSLSTMDataset, self).__init__()
+        self.state = state
+        self.trajs_input = np.load(save_file1)
+        self.expected_output = np.load(save_file2)
+        self.social_rectangular_input = np.load(save_file3)
+        self.scene_input = np.load(save_file4)
+        self.len = len(self.trajs_input)
+
+        self.generate_data()
+        # print(self.trajs_input.shape)
+
     def generate_data(self):
         """
         生成训练数据
@@ -261,9 +327,14 @@ class TotalDataset(Dataset):
 
 
 if __name__ == '__main__':
-    dataset = TotalDataset(8, 12, 'train')
+    # dataset = TotalDataset(8, 12, 'train')
+    dataset = SSLSTMDataset('train')
+    # test = np.load(save_file1)
     x, y, z, n = dataset.__getitem__(0)
+    print(x.shape)
+    print(y.shape)
     print(z.shape)
+    print(n.shape)
     # cv2.imshow('imshow', z)
     # z_np = z[0].numpy()
     # z_np = z_np.astype(np.uint8)
