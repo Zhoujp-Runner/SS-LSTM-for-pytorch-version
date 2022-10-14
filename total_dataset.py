@@ -14,10 +14,10 @@ import occupancy
 
 filename = "./data/ewap_dataset_full/ewap_dataset/seq_eth/obsmat.txt"
 video_path = "./data/ewap_dataset_full/ewap_dataset/seq_eth/seq_eth.avi"
-save_file1 = "./data/trajs_input.npy"
-save_file2 = "./data/expected_output.npy"
-save_file3 = "./data/social_rectangular_input.npy"
-save_file4 = "./data/scene_input.npy"
+save_file1 = "../SSLSTMdata/trajs_input.npy"
+save_file2 = "../SSLSTMdata/expected_output.npy"
+save_file3 = "../SSLSTMdata/social_rectangular_input.npy"
+save_file4 = "../SSLSTMdata/scene_input.npy"
 
 
 class TotalDataset(Dataset):
