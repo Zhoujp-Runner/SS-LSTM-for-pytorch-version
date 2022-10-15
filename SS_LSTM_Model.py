@@ -238,16 +238,13 @@ def train_with_val():
     # dataset_person = PersonDataset(observed_frame_num, predicting_frame_num, state='train')
     # dataloader_person = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-<<<<<<< HEAD
     # dataset_val = TotalDataset(observed_frame_num, predicting_frame_num, state='validation')
     # dataloader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=True)
     #
     # dataset = TotalDataset(observed_frame_num, predicting_frame_num, state='train')
     # dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
     dataset_val = SSLSTMDataset(state='validation')
-=======
-    dataset_val = TotalDataset(observed_frame_num, predicting_frame_num, state='validation')
->>>>>>> 9afb4fc47e5cfc671da0d70186de5902d58fc73d
     dataloader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=True)
 
     dataset = SSLSTMDataset(state='train')
@@ -311,15 +308,9 @@ def train_with_val():
                     val_loss += loss_val.item()
                 val_loss_epoch = val_loss/len(dataloader_val)
                 print("\nVal_loss: ", val_loss/len(dataloader_val))
-<<<<<<< HEAD
         x = torch.tensor([i])
         y = torch.tensor([[train_loss_epoch, val_loss_epoch]])
         viz.line(X=x, Y=y, win="Loss_Loss", update='append')
-=======
-        # x = torch.tensor([i])
-        # y = torch.tensor([[train_loss_epoch, val_loss_epoch]])
-        # viz.line(X=x, Y=y, win="Loss_Loss", update='append')
->>>>>>> 9afb4fc47e5cfc671da0d70186de5902d58fc73d
 
 
 if __name__ == '__main__':

@@ -65,9 +65,9 @@ class TotalDataset(Dataset):
 
         self.get_img_match_to_trajs_frame()
 
-        self.save_data()
+        # self.save_data()
 
-        # self.generate_data()
+        self.generate_data()
 
         # print(person_id)
         # print(self.ped_num)
