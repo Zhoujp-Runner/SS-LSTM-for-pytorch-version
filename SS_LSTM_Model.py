@@ -101,7 +101,7 @@ class PersonModel(nn.Module):
     def __init__(self, hidden_size):
         super(PersonModel, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(in_features=2, out_features=hidden_size),
+            nn.Linear(in_features=4, out_features=hidden_size),
             nn.ReLU(),
             nn.GRU(input_size=hidden_size, hidden_size=hidden_size)
         )
@@ -168,11 +168,11 @@ class Decoder(nn.Module):
     def __init__(self, hidden_size):
         super(Decoder, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(in_features=2, out_features=hidden_size),
+            nn.Linear(in_features=4, out_features=hidden_size),
             nn.ReLU()
         )
         self.gru = nn.GRU(input_size=hidden_size, hidden_size=hidden_size)
-        self.linear = nn.Linear(in_features=hidden_size, out_features=2)
+        self.linear = nn.Linear(in_features=hidden_size, out_features=4)
 
     def forward(self, input, hidden_state):
         # [batch_size, 2]==>[1, batch_size, 2]
@@ -195,10 +195,10 @@ class Seq2Seq(nn.Module):
     def forward(self, input_person, input_social, input_scene, target):
         """
         Seq2Seq前向传播函数
-        :param input_person: person_scale输入[batch_num, frame_num, coord]
+        :param input_person: person_scale输入[batch_num, frame_num, coord] or [batch_num, frame_num, coord_with_speed]
         :param input_social:social_scale输入[batch_num, frame_num, occupancy_size]
         :param input_scene:scene_scale输入[batch_num, frame_num, img]
-        :param target: 目标输出[batch_num, frame_num, coord]
+        :param target: 目标输出[batch_num, frame_num, coord] or [batch_num, frame_num, coord_with_speed]
         :return:
         """
         target = target.permute(1, 0, 2)
@@ -276,6 +276,7 @@ def train_with_val():
             target = target.to(device())
 
             y_label = target.permute(1, 0, 2)
+            # y_label = y_label[:, :2]
             # outs = model(input_person, input_social, target)
             outs = model(input_person, input_social, input_scene, target)
             y = outs.to(device())
