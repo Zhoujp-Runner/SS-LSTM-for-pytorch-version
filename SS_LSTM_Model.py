@@ -101,7 +101,25 @@ class PersonModel(nn.Module):
     def __init__(self, hidden_size):
         super(PersonModel, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(in_features=4, out_features=hidden_size),
+            nn.Linear(in_features=2, out_features=hidden_size),
+            nn.ReLU(),
+            nn.GRU(input_size=hidden_size, hidden_size=hidden_size)
+        )
+
+    def forward(self, x):
+        input = x.permute(1, 0, 2).float()
+        # print(input.dtype)
+        out, hidden = self.model(input)
+        # print(out.shape)
+        # print(hidden.shape)
+        return out, hidden
+
+
+class SpeedModel(nn.Module):
+    def __init__(self, hidden_size):
+        super(SpeedModel, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(in_features=2, out_features=hidden_size),
             nn.ReLU(),
             nn.GRU(input_size=hidden_size, hidden_size=hidden_size)
         )
@@ -168,11 +186,11 @@ class Decoder(nn.Module):
     def __init__(self, hidden_size):
         super(Decoder, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(in_features=4, out_features=hidden_size),
+            nn.Linear(in_features=2, out_features=hidden_size),
             nn.ReLU()
         )
         self.gru = nn.GRU(input_size=hidden_size, hidden_size=hidden_size)
-        self.linear = nn.Linear(in_features=hidden_size, out_features=4)
+        self.linear = nn.Linear(in_features=hidden_size, out_features=2)
 
     def forward(self, input, hidden_state):
         # [batch_size, 2]==>[1, batch_size, 2]
@@ -190,14 +208,16 @@ class Seq2Seq(nn.Module):
         self.encoder_person = PersonModel(hidden_size=hidden_size)
         self.encoder_social = SocialModel(hidden_size=hidden_size)
         self.encoder_scene = SceneModel(hidden_size=hidden_size)
+        self.encoder_speed = SpeedModel(hidden_size=hidden_size)
         self.decoder = Decoder(hidden_size=hidden_size)
 
-    def forward(self, input_person, input_social, input_scene, target):
+    def forward(self, input_person, input_social, input_scene, input_speed, target):
         """
         Seq2Seq前向传播函数
         :param input_person: person_scale输入[batch_num, frame_num, coord] or [batch_num, frame_num, coord_with_speed]
         :param input_social:social_scale输入[batch_num, frame_num, occupancy_size]
         :param input_scene:scene_scale输入[batch_num, frame_num, img]
+        :param input_speed:speed_scale输入[batch_num, frame_num, speed]
         :param target: 目标输出[batch_num, frame_num, coord] or [batch_num, frame_num, coord_with_speed]
         :return:
         """
@@ -206,9 +226,11 @@ class Seq2Seq(nn.Module):
         out_encoder_person, hidden_person = self.encoder_person(input_person)
         out_encoder_social, hidden_social = self.encoder_social(input_social)
         out_encoder_scene, hidden_scene = self.encoder_scene(input_scene)
+        out_encoder_speed, hidden_speed = self.encoder_speed(input_speed)
         # hidden = torch.concat([hidden_person, hidden_social], dim=0)
         hidden = torch.add(hidden_person, hidden_social)
         hidden = torch.add(hidden, hidden_scene)
+        hidden = torch.add(hidden, hidden_speed)
         # hidden = torch.add(hidden_person, hidden_social)
         # print(out_encoder.shape)
         # print(hidden_encoder.shape)
@@ -265,7 +287,8 @@ def train_with_val():
         model.train()
         print("train...")
         train_loss = 0
-        for input_person, input_social, input_scene, target in dataloader:
+        for input_person, input_social, input_scene, input_speed, target in dataloader:
+        # for input_person, input_social, input_scene, target in dataloader:
         # for input_person, input_social, target in dataloader:
             # print(target.shape)
             optimizer.zero_grad()
@@ -273,12 +296,14 @@ def train_with_val():
             input_person = input_person.to(device())
             input_social = input_social.to(device())
             input_scene = input_scene.to(device())
+            input_speed = input_speed.to(device())
             target = target.to(device())
 
             y_label = target.permute(1, 0, 2)
             # y_label = y_label[:, :2]
             # outs = model(input_person, input_social, target)
-            outs = model(input_person, input_social, input_scene, target)
+            # outs = model(input_person, input_social, input_scene, target)
+            outs = model(input_person, input_social, input_scene, input_speed, target)
             y = outs.to(device())
             loss = criterion(y_label, y)
             loss.backward()
@@ -293,16 +318,19 @@ def train_with_val():
             print("val...")
             val_loss = 0
             with torch.no_grad():
-                for in_val_person, in_val_social, in_val_scene, tar_val in dataloader_val:
+                for in_val_person, in_val_social, in_val_scene, in_val_speed, tar_val in dataloader_val:
+                # for in_val_person, in_val_social, in_val_scene, tar_val in dataloader_val:
                 # for in_val_person, in_val_social, tar_val in dataloader_val:
 
                     in_val_person = in_val_person.to(device())
                     in_val_social = in_val_social.to(device())
                     in_val_scene = in_val_scene.to(device())
+                    in_val_speed = in_val_speed.to(device())
                     tar_val = tar_val.to(device())
 
                     y_label_val = tar_val.permute(1, 0, 2)
-                    outs_val = model(in_val_person, in_val_social, in_val_scene, tar_val)
+                    outs_val = model(in_val_person, in_val_social, in_val_scene, in_val_speed, tar_val)
+                    # outs_val = model(in_val_person, in_val_social, in_val_scene, tar_val)
                     # outs_val = model(in_val_person, in_val_social, tar_val)
                     y_val = outs_val.to(device())
                     loss_val = criterion(y_label_val, y_val)

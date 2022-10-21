@@ -20,6 +20,7 @@ save_file3 = "../SSLSTMdata/social_rectangular_input.npy"
 save_file4 = "../SSLSTMdata/scene_input.npy"
 save_file5 = "../SSLSTMdata/trajs_input_with_speed.npy"
 save_file6 = "../SSLSTMdata/expected_output_with_speed.npy"
+save_file7 = "../SSLSTMdata/speed_input.npy"
 
 
 class TotalDataset(Dataset):
@@ -53,6 +54,11 @@ class TotalDataset(Dataset):
         self.img_shape = [480, 640, 3]  # [height, width, channels]
         # ###############Scene############### #
 
+        # ###############Speed############### #
+        self.speed_input = []
+        self.speeds = []
+        # ###############Speed############### #
+
         self.source_data = np.loadtxt(self.filename)
         person_id = self.source_data[:, 1]
         self.ped_num = np.size(np.unique(person_id))
@@ -60,16 +66,20 @@ class TotalDataset(Dataset):
         # self.get_obs_pred()
         # self.get_traj_input()
         # self.get_expected_output()
-        self.get_traj_from_txt_with_speed()
-        self.get_obs_pred_with_speed()
-        self.get_traj_input_with_speed()
-        self.get_expected_output_with_speed()
-        self.len = len(self.trajs_input)
+
+        # self.get_traj_from_txt_with_speed()
+        # self.get_obs_pred_with_speed()
+        # self.get_traj_input_with_speed()
+        # self.get_expected_output_with_speed()
+        # self.len = len(self.trajs_input)
 
         # self.generate_social_input_from_obs_trajs()
         # self.generate_social_input_from_pred_trajs()
 
         # self.get_img_match_to_trajs_frame()
+
+        self.get_speed_from_txt()
+        self.get_speed_input()
 
         self.save_data()
 
@@ -96,6 +106,31 @@ class TotalDataset(Dataset):
             self.trajs.append(traj)
         # print(self.ped_num/8)
         # print(len(self.trajs))
+
+    def get_speed_from_txt(self):
+        """
+        将速度单独作为尺度传入
+        :return:
+        """
+        for index in range(self.ped_num):
+            speed = []
+            for i in range(len(self.source_data)):
+                if self.source_data[i][1] == index + 1:
+                    speed.append([self.source_data[i][5], self.source_data[i][7]])
+            speed = np.reshape(speed, [-1, 2])
+            self.speeds.append(speed)
+
+    def get_speed_input(self):
+        count = 0
+        for index in range(self.ped_num):
+            if len(self.speeds[index]) >= self.obs_len + self.pred_len:
+                speed = []
+                count += 1
+                speed = self.speeds[index][: self.obs_len]
+                # print(speed)
+                speed = np.reshape(speed, [self.obs_len, 2])
+                self.speed_input.append(speed)
+        self.speed_input = np.reshape(self.speed_input, [count, self.obs_len, 2])
 
     def get_traj_from_txt_with_speed(self):
         """
@@ -307,8 +342,9 @@ class TotalDataset(Dataset):
         # np.save(save_file2, self.expected_output)
         # np.save(save_file3, self.social_rectangular_input)
         # np.save(save_file4, self.scene_input)
-        np.save(save_file5, self.trajs_input)
-        np.save(save_file6, self.expected_output)
+        # np.save(save_file5, self.trajs_input)
+        # np.save(save_file6, self.expected_output)
+        np.save(save_file7, self.speed_input)
 
     def generate_data(self):
         """
@@ -351,10 +387,11 @@ class SSLSTMDataset(Dataset):
     def __init__(self, state='train'):
         super(SSLSTMDataset, self).__init__()
         self.state = state
-        self.trajs_input = np.load(save_file5)
-        self.expected_output = np.load(save_file6)
+        self.trajs_input = np.load(save_file1)
+        self.expected_output = np.load(save_file2)
         self.social_rectangular_input = np.load(save_file3)
         self.scene_input = np.load(save_file4)
+        self.speed_input = np.load(save_file7)
         self.len = len(self.trajs_input)
 
         self.generate_data()
@@ -370,17 +407,20 @@ class SSLSTMDataset(Dataset):
             self.expected_output = self.expected_output[:int(self.len / 8) * 5]
             self.social_rectangular_input = self.social_rectangular_input[:int(self.len / 8) * 5]
             self.scene_input = self.scene_input[:int(self.len / 8) * 5]
+            self.speed_input = self.speed_input[:int(self.len / 8) * 5]
             self.len = len(self.trajs_input)
         elif self.state == 'validation':
             self.trajs_input = self.trajs_input[int(self.len/8)*5:int(self.len/8)*7]
             self.expected_output = self.expected_output[int(self.len / 8) * 5:int(self.len / 8) * 7]
             self.social_rectangular_input = self.social_rectangular_input[int(self.len / 8) * 5:int(self.len / 8) * 7]
             self.scene_input = self.scene_input[int(self.len / 8) * 5:int(self.len / 8) * 7]
+            self.speed_input = self.speed_input[int(self.len / 8) * 5:int(self.len / 8) * 7]
             self.len = len(self.expected_output)
         self.trajs_input = torch.FloatTensor(self.trajs_input)
         self.expected_output = torch.FloatTensor(self.expected_output)
         self.social_rectangular_input = torch.FloatTensor(self.social_rectangular_input)
         self.scene_input = torch.FloatTensor(self.scene_input)
+        self.speed_input = torch.FloatTensor(self.speed_input)
 
     def __len__(self):
         # input, output = self.generate_data()
@@ -392,20 +432,25 @@ class SSLSTMDataset(Dataset):
         social_input = self.social_rectangular_input[item, :, :]
         scene_input = self.scene_input[item]
         scene_input = scene_input.permute(3, 0, 1, 2)
+        speed_input = self.speed_input[item, :, :]
         target = self.expected_output[item, :, :]
-        return person_input, social_input, scene_input, target
+        return person_input, social_input, scene_input, speed_input, target
+        # return person_input, social_input, scene_input, target
         # return person_input, social_input,  target
 
 
 if __name__ == '__main__':
     # dataset = TotalDataset(8, 12, 'train')
+    # print(dataset.speed_input)
+    # print(len(dataset.speed_input[0][0]))
     dataset = SSLSTMDataset('train')
     # test = np.load(save_file5)
     # print(test)
-    x, y, z, n = dataset.__getitem__(0)
+    x, y, z, s, n = dataset.__getitem__(0)
     print(x.shape)
     print(y.shape)
     print(z.shape)
+    print(s.shape)
     print(n.shape)
     # cv2.imshow('imshow', z)
     # z_np = z[0].numpy()
