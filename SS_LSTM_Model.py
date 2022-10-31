@@ -22,6 +22,8 @@ from total_dataset import SSLSTMDataset
 observed_frame_num = 8
 predicting_frame_num = 12
 batch_size = 10
+h_matrix = np.loadtxt("./data/ewap_dataset_full/ewap_dataset/seq_eth/H.txt")
+h_inv = np.linalg.inv(h_matrix)
 # ######################################## #
 
 
@@ -252,6 +254,14 @@ def device():
         return torch.device('cuda')
     else:
         return torch.device('cpu')
+
+
+# def world_to_pixel(coord_pixel):
+#     """
+#     将世界坐标系转换为像素坐标系（单位m）
+#     :param coord_pixel: 世界坐标系下的坐标[world_x, world_y]
+#     :return: [pixel_x,pixel_y]
+#     """
 
 
 def train_with_val():
