@@ -297,7 +297,7 @@ def train_with_val():
         model.train()
         print("train...")
         train_loss = 0
-        for input_person, input_social, input_scene, input_speed, target in dataloader:
+        for input_person, input_social, input_scene, input_speed, target, ped_id in dataloader:
         # for input_person, input_social, input_scene, target in dataloader:
         # for input_person, input_social, target in dataloader:
             # print(target.shape)
@@ -328,7 +328,7 @@ def train_with_val():
             print("val...")
             val_loss = 0
             with torch.no_grad():
-                for in_val_person, in_val_social, in_val_scene, in_val_speed, tar_val in dataloader_val:
+                for in_val_person, in_val_social, in_val_scene, in_val_speed, tar_val, ped_id in dataloader_val:
                 # for in_val_person, in_val_social, in_val_scene, tar_val in dataloader_val:
                 # for in_val_person, in_val_social, tar_val in dataloader_val:
 

@@ -21,6 +21,7 @@ save_file4 = "../SSLSTMdata/scene_input.npy"
 save_file5 = "../SSLSTMdata/trajs_input_with_speed.npy"
 save_file6 = "../SSLSTMdata/expected_output_with_speed.npy"
 save_file7 = "../SSLSTMdata/speed_input.npy"
+save_file8 = "../SSLSTMdata/ped_id_list.npy"
 
 
 class TotalDataset(Dataset):
@@ -36,6 +37,7 @@ class TotalDataset(Dataset):
         self.pred_trajs = []
         self.trajs_input = []
         self.expected_output = []
+        self.ped_id_list = []
         self.len = 0
         self.state = state
         # ###############Person############## #
@@ -62,8 +64,8 @@ class TotalDataset(Dataset):
         self.source_data = np.loadtxt(self.filename)
         person_id = self.source_data[:, 1]
         self.ped_num = np.size(np.unique(person_id))
-        # self.get_traj_from_txt()
-        # self.get_obs_pred()
+        self.get_traj_from_txt()
+        self.get_obs_pred()
         # self.get_traj_input()
         # self.get_expected_output()
 
@@ -78,8 +80,8 @@ class TotalDataset(Dataset):
 
         # self.get_img_match_to_trajs_frame()
 
-        self.get_speed_from_txt()
-        self.get_speed_input()
+        # self.get_speed_from_txt()
+        # self.get_speed_input()
 
         self.save_data()
 
@@ -166,6 +168,7 @@ class TotalDataset(Dataset):
                 pred_traj = np.reshape(pred_traj, [self.pred_len, 4])
                 self.obs_trajs.append(obs_traj)
                 self.pred_trajs.append(pred_traj)
+                self.ped_id_list.append(self.trajs[index][0][0])  # 储存对应的行人编号
         self.obs_trajs = np.reshape(self.obs_trajs, [count, self.obs_len, 4])
         self.pred_trajs = np.reshape(self.pred_trajs, [count, self.pred_len, 4])
 
@@ -344,7 +347,8 @@ class TotalDataset(Dataset):
         # np.save(save_file4, self.scene_input)
         # np.save(save_file5, self.trajs_input)
         # np.save(save_file6, self.expected_output)
-        np.save(save_file7, self.speed_input)
+        # np.save(save_file7, self.speed_input)
+        np.save(save_file8, self.ped_id_list)
 
     def generate_data(self):
         """
@@ -392,6 +396,7 @@ class SSLSTMDataset(Dataset):
         self.social_rectangular_input = np.load(save_file3)
         self.scene_input = np.load(save_file4)
         self.speed_input = np.load(save_file7)
+        self.ped_id_list = np.load(save_file8)
         self.len = len(self.trajs_input)
 
         self.generate_data()
@@ -434,24 +439,27 @@ class SSLSTMDataset(Dataset):
         scene_input = scene_input.permute(3, 0, 1, 2)
         speed_input = self.speed_input[item, :, :]
         target = self.expected_output[item, :, :]
-        return person_input, social_input, scene_input, speed_input, target
+        ped_id = self.ped_id_list[item]
+        return person_input, social_input, scene_input, speed_input, target, ped_id
         # return person_input, social_input, scene_input, target
         # return person_input, social_input,  target
 
 
 if __name__ == '__main__':
     # dataset = TotalDataset(8, 12, 'train')
+    # print(dataset.ped_id_list)
     # print(dataset.speed_input)
     # print(len(dataset.speed_input[0][0]))
     dataset = SSLSTMDataset('train')
     # test = np.load(save_file5)
     # print(test)
-    x, y, z, s, n = dataset.__getitem__(0)
-    print(x.shape)
+    x, y, z, s, n, p = dataset.__getitem__(0)
+    print(x)
     print(y.shape)
     print(z.shape)
     print(s.shape)
     print(n.shape)
+    print(p)
     # cv2.imshow('imshow', z)
     # z_np = z[0].numpy()
     # z_np = z_np.astype(np.uint8)
