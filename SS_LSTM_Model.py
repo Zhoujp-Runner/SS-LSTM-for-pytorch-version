@@ -19,9 +19,11 @@ from total_dataset import TotalDataset
 from total_dataset import SSLSTMDataset
 
 # #############parameters################# #
+epochs = 100
 observed_frame_num = 8
 predicting_frame_num = 12
 batch_size = 10
+save_file = "../SSLSTMdata/outs_with_ped_id.npy"
 h_matrix = np.loadtxt("./data/ewap_dataset_full/ewap_dataset/seq_eth/H.txt")
 h_inv = np.linalg.inv(h_matrix)
 # ######################################## #
@@ -95,8 +97,8 @@ def calculate_ade(test_label, predicted_output, test_num, predicting_frame_num, 
     return np.average(show_ade)
 
 
-def get_data():
-    return PersonDataset(observed_frame_num, predicting_frame_num).generate_data()
+# def get_data():
+#     return PersonDataset(observed_frame_num, predicting_frame_num).generate_data()
 
 
 class PersonModel(nn.Module):
@@ -265,7 +267,6 @@ def device():
 
 
 def train_with_val():
-    epochs = 100
 
     # dataset_person = PersonDataset(observed_frame_num, predicting_frame_num, state='train')
     # dataloader_person = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -302,6 +303,7 @@ def train_with_val():
         # for input_person, input_social, target in dataloader:
             # print(target.shape)
             optimizer.zero_grad()
+            # print(input_person)
 
             input_person = input_person.to(device())
             input_social = input_social.to(device())
@@ -314,6 +316,7 @@ def train_with_val():
             # outs = model(input_person, input_social, target)
             # outs = model(input_person, input_social, input_scene, target)
             outs = model(input_person, input_social, input_scene, input_speed, target)
+            # print(outs.shape)
             y = outs.to(device())
             loss = criterion(y_label, y)
             loss.backward()
@@ -327,6 +330,8 @@ def train_with_val():
             model.eval()
             print("val...")
             val_loss = 0
+            outs = []
+            out = []
             with torch.no_grad():
                 for in_val_person, in_val_social, in_val_scene, in_val_speed, tar_val, ped_id in dataloader_val:
                 # for in_val_person, in_val_social, in_val_scene, tar_val in dataloader_val:
@@ -345,8 +350,25 @@ def train_with_val():
                     y_val = outs_val.to(device())
                     loss_val = criterion(y_label_val, y_val)
                     val_loss += loss_val.item()
+
+                    outs_val_set = outs_val.permute(1, 0, 2).numpy()
+                    # print(len(in_val_person))
+                    # print(ped_id)
+                    # print(outs_val)
+                    # print(outs_val.shape)
+                    if i == 99:
+                        for index in range(len(in_val_person)):
+                            out.append([ped_id[index], outs_val_set[index]])
+
                 val_loss_epoch = val_loss/len(dataloader_val)
                 print("\nVal_loss: ", val_loss/len(dataloader_val))
+
+                if i == 99:
+                    outs = np.reshape(out, [66, -1])  # 66为验证集的样本数
+                    # print(outs)
+                    np.save(save_file, outs)
+                    print("save done")
+                    # print(len(out))
         x = torch.tensor([i])
         y = torch.tensor([[train_loss_epoch, val_loss_epoch]])
         viz.line(X=x, Y=y, win="Loss_Loss", update='append')
