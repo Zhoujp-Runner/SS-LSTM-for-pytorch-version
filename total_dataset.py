@@ -391,6 +391,7 @@ class SSLSTMDataset(Dataset):
     def __init__(self, state='train'):
         super(SSLSTMDataset, self).__init__()
         self.state = state
+        # self.source_data = np.loadtxt(filename)
         self.trajs_input = np.load(save_file1)
         self.expected_output = np.load(save_file2)
         self.social_rectangular_input = np.load(save_file3)
@@ -413,6 +414,7 @@ class SSLSTMDataset(Dataset):
             self.social_rectangular_input = self.social_rectangular_input[:int(self.len / 8) * 5]
             self.scene_input = self.scene_input[:int(self.len / 8) * 5]
             self.speed_input = self.speed_input[:int(self.len / 8) * 5]
+            self.ped_id_list = self.ped_id_list[:int(self.len / 8) * 5]
             self.len = len(self.trajs_input)
         elif self.state == 'validation':
             self.trajs_input = self.trajs_input[int(self.len/8)*5:int(self.len/8)*7]
@@ -420,6 +422,7 @@ class SSLSTMDataset(Dataset):
             self.social_rectangular_input = self.social_rectangular_input[int(self.len / 8) * 5:int(self.len / 8) * 7]
             self.scene_input = self.scene_input[int(self.len / 8) * 5:int(self.len / 8) * 7]
             self.speed_input = self.speed_input[int(self.len / 8) * 5:int(self.len / 8) * 7]
+            self.ped_id_list = self.ped_id_list[int(self.len / 8) * 5:int(self.len / 8) * 7]
             self.len = len(self.expected_output)
         self.trajs_input = torch.FloatTensor(self.trajs_input)
         self.expected_output = torch.FloatTensor(self.expected_output)
@@ -450,16 +453,18 @@ if __name__ == '__main__':
     # print(dataset.ped_id_list)
     # print(dataset.speed_input)
     # print(len(dataset.speed_input[0][0]))
-    dataset = SSLSTMDataset('train')
+    # dataset = SSLSTMDataset('train')
+    dataset = SSLSTMDataset('validation')
+    print(dataset.ped_id_list)
     # test = np.load(save_file5)
     # print(test)
-    x, y, z, s, n, p = dataset.__getitem__(0)
-    print(x)
-    print(y.shape)
-    print(z.shape)
-    print(s.shape)
-    print(n.shape)
-    print(p)
+    # x, y, z, s, n, p = dataset.__getitem__(0)
+    # print(x)
+    # print(y.shape)
+    # print(z.shape)
+    # print(s.shape)
+    # print(n.shape)
+    # print(p)
     # cv2.imshow('imshow', z)
     # z_np = z[0].numpy()
     # z_np = z_np.astype(np.uint8)

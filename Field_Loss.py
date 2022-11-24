@@ -125,6 +125,7 @@ class FieldLoss(nn.Module):
         # g = torch.tensor(1e-3, dtype=torch.float)
         # delta_v = output[1] - output[0]
         # loss2 = g * torch.exp(-delta_v)
+        self.last_position = output  # update the last_position
         return loss
 
 
