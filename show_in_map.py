@@ -102,7 +102,7 @@ def show():
             print("............ped draw..........")
             print(frame_id)
             cv2.imshow("img", img)
-            cv2.waitKey(200)
+            cv2.waitKey(500)
         # for i in range(len(gt)):
         #     data_frame_id = int(data[i][0])
         #     if frame_id == data_frame_id:

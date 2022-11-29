@@ -5,6 +5,7 @@
 import torch
 import torch.nn as nn
 from torch import optim
+from torch.autograd import Variable
 
 import math
 import numpy as np
@@ -29,15 +30,16 @@ def get_neighbour(ped_ID, obs_len, source_data):
     for item in source_data:
         if item[1] == ped_ID:
             last_obs_frame = item[0]
-            print(item[0])
+            # print(item[0])
             break
     last_obs_frame = last_obs_frame + (obs_len - 1) * 6
-    print(last_obs_frame)
+    # print(last_obs_frame)
 
     neighbour = []
     for item in source_data:
         if item[0] == last_obs_frame and item[1] != ped_ID:
-            neighbour.append([item[2], item[4], item[5], item[7]])
+            angle = math.atan2(item[7], item[5])
+            neighbour.append([item[2], item[4], item[5], item[7], angle])
 
     # #################test############## #
     # cur = []
@@ -51,44 +53,55 @@ def get_neighbour(ped_ID, obs_len, source_data):
     #     if item[0] == last_obs_frame and item[1] == ped_ID:
     #         angle = math.atan2((item[4] - las[0][1]), (item[2] - las[0][0]))
     #         cur = [item[2], item[4], item[5], item[7]]
+    neighbour = torch.tensor(neighbour, dtype=torch.float)
 
     return neighbour
 
 
-def calculate_energy(cur_ped_state, neighbour_state, angle):
+def calculate_energy(ped_state, neighbour_state) -> torch.Tensor:
     """
 
-    :param cur_ped_state: [coord_x, coord_y, v_x, v_y]
-    :param neighbour_state: [[coord_x, coord_y, v_x, v_y]]
-    :param angle: current angle measured in radians
+    :param ped_state: shape:[pred_num, 2] | last dim:[coord_x, coord_y]
+    :param neighbour_state: [[coord_x, coord_y, v_x, v_y, angle]]
+                            angle: neighbour's current angle of speed measured in radians
     :return: energy vector : np.ndarray[energy_x, energy_y]
     """
-    energy = np.array([0, 0])
 
     if neighbour_state.__len__ == 0:
-        return energy
+        return torch.tensor([0, 0], dtype=torch.float)
 
-    for item in neighbour_state:  # item : [coord_x, coord_y, v_x, v_y]
-        speed = math.sqrt(item[2] ** 2 + item[3] ** 2)
-        equal_mass = mass * (1.566 * 1e-14 * math.pow(speed, 6.687) + 0.3345)
-        x_ = \
-            math.cos(angle) * (cur_ped_state[0] - item[0]) + \
-            math.sin(angle) * (cur_ped_state[1] - item[1])
-        y_ = \
-            - math.sin(angle) * (cur_ped_state[0] - item[0]) + \
-            math.cos(angle) * (cur_ped_state[1] - item[1])
-        position_energy = 1 / (x_ ** 2 + y_ ** 2)
-        energy_i = equal_mass * position_energy
+    pred_num = len(ped_state)
+    energy_for_each_fram = torch.FloatTensor(pred_num)
+    index = 0
+    for cur_ped_state in ped_state:
+        energy = torch.tensor([0, 0], dtype=torch.float)
+        for item in neighbour_state:  # item : [coord_x, coord_y, v_x, v_y]
+            speed = torch.sqrt(torch.pow(item[2], 2) + torch.pow(item[3], 2))
+            # equal_mass = mass * (1.566 * 1e-14 * torch.pow(speed, 6.687) + 0.3345)
+            equal_mass = mass
+            x_ = \
+                torch.cos(item[4]) * (cur_ped_state[0] - item[0]) + \
+                torch.sin(item[4]) * (cur_ped_state[1] - item[1])
+            y_ = \
+                - torch.sin(item[4]) * (cur_ped_state[0] - item[0]) + \
+                torch.cos(item[4]) * (cur_ped_state[1] - item[1])
+            position_energy = 1 / (x_ ** 2 + y_ ** 2)
+            energy_i = equal_mass * position_energy
 
-        # 以目标行人为中心建立局部坐标系,借此来表示向量
-        neighbour_coord = [item[0] - cur_ped_state[0], item[1] - cur_ped_state[1]]
-        neighbour_angle = math.atan2(neighbour_coord[1], neighbour_coord[0])
+            # 以目标行人为中心建立局部坐标系,借此来表示向量
+            neighbour_coord = [item[0] - cur_ped_state[0], item[1] - cur_ped_state[1]]
+            neighbour_angle = torch.atan2(neighbour_coord[1], neighbour_coord[0])
 
-        # 这里先不添加负号，正常来说斥力场应该是负方向的，但是目前只需用它来计算大小，所以先不添加
-        energy_i_vector = np.array([energy_i * math.cos(neighbour_angle), energy_i * math.sin(neighbour_angle)])
-        energy = energy + energy_i_vector
+            # 这里先不添加负号，正常来说斥力场应该是负方向的，但是目前只需用它来计算大小，所以先不添加
+            energy_i_vector = torch.tensor([energy_i * torch.cos(neighbour_angle), energy_i * torch.sin(neighbour_angle)])
+            energy = energy + energy_i_vector
+            # print(energy)
+        energy_norm = torch.norm(energy)
+        # print(energy_norm)
+        energy_for_each_fram[index] = energy_norm
+        index += 1
 
-    return energy
+    return energy_for_each_fram
 
 
 class TestModel(nn.Module):
@@ -107,25 +120,42 @@ class TestModel(nn.Module):
 
 
 class FieldLoss(nn.Module):
-    def __init__(self, last_input):
+    def __init__(self):
         super(FieldLoss, self).__init__()
         self.mse = nn.MSELoss()
-        self.last_position = last_input  # 初始化为最后一观测帧的位置
+        # self.last_position = last_input  # 初始化为最后一观测帧的位置
 
     def forward(self, output, target, ped_id, obs_len):
+        """
+
+        :param output: shape[pre_len, batch_size, 2]
+        :param target: shape[pre_len, batch_size, 2]
+        :param ped_id:
+        :param obs_len:
+        :return:
+        """
         # 均方根损失
         loss1 = self.mse(output, target)
+        print("loss1: ", loss1)
         # 求势场大小
-        angle = math.atan2((output[1] - self.last_position[1]), (output[0] - self.last_position[0]))
-        neighbours = get_neighbour(ped_id, obs_len, source_data)
-        field_vecotr = calculate_energy(output, neighbours, angle)
-        field_energy = np.linalg.norm(field_vecotr)
+        # angle = math.atan2((output[1] - self.last_position[1]), (output[0] - self.last_position[0]))
+        output = output.permute(1, 0, 2)
+        target = target.permute(1, 0, 2)
+        field_energy = 0
+        for index in range(len(ped_id)):
+            neighbours = get_neighbour(ped_id[index], obs_len, source_data)
+            field_vector = calculate_energy(output[index], neighbours)
+            field_energy_i = torch.mean(field_vector)  # 一个目标的所有预测点的势场均值
+            field_energy += field_energy_i
+        field_energy_mean = field_energy / len(ped_id)  # 所有目标的势场均值
+        print("loss2: ", field_energy_mean)
         # 总损失
-        loss = loss1 + field_energy
+        loss = loss1 + field_energy_mean
+        print("total_loss: ", loss)
         # g = torch.tensor(1e-3, dtype=torch.float)
         # delta_v = output[1] - output[0]
         # loss2 = g * torch.exp(-delta_v)
-        self.last_position = output  # update the last_position
+        # self.last_position = output  # update the last_position
         return loss
 
 
@@ -149,3 +179,15 @@ if __name__ == '__main__':
     # a = np.array([1, 2])
     # b = np.array([2, 3])
     # print(a + b)
+    # a = torch.tensor(7, dtype=torch.float, requires_grad=True)
+    # b = torch.tensor([5], dtype=torch.float, requires_grad=True)
+    # c = a + b
+    # c = torch.mean(c)
+    # print(c)
+    a = torch.tensor([[1, 2], [2, 3], [2, 4]], dtype=torch.float)
+    b = torch.tensor([[3, 4, 5, 6, 2], [4, 3, 2, 1, 3]], dtype=torch.float)
+    e = calculate_energy(a, b)
+    print(e)
+    print(e.dtype)
+    print(torch.norm(e))
+

@@ -17,9 +17,10 @@ from scipy.spatial import distance
 # from occupancy import SocialDataset
 from total_dataset import TotalDataset
 from total_dataset import SSLSTMDataset
+from Field_Loss import FieldLoss
 
 # #############parameters################# #
-epochs = 100
+epochs = 300
 observed_frame_num = 8
 predicting_frame_num = 12
 batch_size = 10
@@ -286,7 +287,8 @@ def train_with_val():
     print('dataloader over')
 
     model = Seq2Seq(128).to(device())
-    criterion = nn.MSELoss()
+    # criterion = nn.MSELoss()
+    criterion = FieldLoss()
     optimizer = torch.optim.Adam(model.parameters())
 
     viz = Visdom(env="SS_LSTM")
@@ -301,7 +303,6 @@ def train_with_val():
         for input_person, input_social, input_scene, input_speed, target, ped_id in dataloader:
         # for input_person, input_social, input_scene, target in dataloader:
         # for input_person, input_social, target in dataloader:
-            # print(target.shape)
             optimizer.zero_grad()
             # print(input_person)
 
@@ -318,7 +319,9 @@ def train_with_val():
             outs = model(input_person, input_social, input_scene, input_speed, target)
             # print(outs.shape)
             y = outs.to(device())
-            loss = criterion(y_label, y)
+            # loss = criterion(y_label, y)
+            # print(loss)
+            loss = criterion(y, y_label, ped_id, observed_frame_num)
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
@@ -348,7 +351,8 @@ def train_with_val():
                     # outs_val = model(in_val_person, in_val_social, in_val_scene, tar_val)
                     # outs_val = model(in_val_person, in_val_social, tar_val)
                     y_val = outs_val.to(device())
-                    loss_val = criterion(y_label_val, y_val)
+                    # loss_val = criterion(y_label_val, y_val)
+                    loss_val = criterion(y_val, y_label_val, ped_id, observed_frame_num)
                     val_loss += loss_val.item()
 
                     outs_val_set = outs_val.permute(1, 0, 2).numpy()
@@ -356,18 +360,18 @@ def train_with_val():
                     # print(ped_id)
                     # print(outs_val)
                     # print(outs_val.shape)
-                    if i == 99:
-                        for index in range(len(in_val_person)):
-                            out.append([ped_id[index], outs_val_set[index]])
+                    # if i == 99:
+                    #     for index in range(len(in_val_person)):
+                    #         out.append([ped_id[index], outs_val_set[index]])
 
                 val_loss_epoch = val_loss/len(dataloader_val)
                 print("\nVal_loss: ", val_loss/len(dataloader_val))
 
-                if i == 99:
-                    outs = np.reshape(out, [66, -1])  # 66为验证集的样本数
+                # if i == 99:
+                    # outs = np.reshape(out, [66, -1])  # 66为验证集的样本数
                     # print(outs)
-                    np.save(save_file, outs)
-                    print("save done")
+                    # np.save(save_file, outs)
+                    # print("save done")
                     # print(len(out))
         x = torch.tensor([i])
         y = torch.tensor([[train_loss_epoch, val_loss_epoch]])
