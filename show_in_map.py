@@ -50,6 +50,10 @@ def get_prediction_position(ped_ID, outs):
         if ped_id == ped_ID:
             prediction_positions = outs[index][1]
             break
+
+    # print(outs)
+    ped_id = outs[index][0].numpy()
+    prediction_positions = outs[index][1]
     # print(prediction_positions)
 
     # 查找第一帧预测帧
@@ -73,6 +77,7 @@ def get_prediction_position(ped_ID, outs):
             count += 1
     ground_truth = np.reshape(ground_truth, [predicting_frame_num, -1])
     predictions = np.reshape(predictions, [predicting_frame_num, -1])
+
 
     print(ped_ID)
     # print(prediction_positions)

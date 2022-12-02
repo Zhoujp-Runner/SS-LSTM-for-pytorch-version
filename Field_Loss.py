@@ -85,7 +85,9 @@ def calculate_energy(ped_state, neighbour_state) -> torch.Tensor:
             y_ = \
                 - torch.sin(item[4]) * (cur_ped_state[0] - item[0]) + \
                 torch.cos(item[4]) * (cur_ped_state[1] - item[1])
+
             position_energy = 1 / (x_ ** 6 + y_ ** 6 + 6.0)
+
             energy_i = equal_mass * position_energy
 
             # 以目标行人为中心建立局部坐标系,借此来表示向量
