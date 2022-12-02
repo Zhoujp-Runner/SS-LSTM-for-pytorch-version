@@ -360,18 +360,18 @@ def train_with_val():
                     # print(ped_id)
                     # print(outs_val)
                     # print(outs_val.shape)
-                    if i == 99:
-                        for index in range(len(in_val_person)):
-                            out.append([ped_id[index], outs_val_set[index]])
+                    # if i == 99:
+                    #     for index in range(len(in_val_person)):
+                    #         out.append([ped_id[index], outs_val_set[index]])
 
                 val_loss_epoch = val_loss/len(dataloader_val)
                 print("\nVal_loss: ", val_loss/len(dataloader_val))
 
-                if i == 99:
-                    outs = np.reshape(out, [66, -1])  # 66为验证集的样本数
+                # if i == 99:
+                #     outs = np.reshape(out, [66, -1])  # 66为验证集的样本数
                     # print(outs)
-                    np.save(save_file, outs)
-                    print("save done")
+                    # np.save(save_file, outs)
+                    # print("save done")
                     # print(len(out))
         x = torch.tensor([i])
         y = torch.tensor([[train_loss_epoch, val_loss_epoch]])
